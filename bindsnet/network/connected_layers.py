@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from functools import reduce
 from operator import mul
 from math import ceil
-from typing import Iterable, Optional, Union, Sequence
+from typing import Iterable, Optional, Union, Sequence, Type
 
 import numpy as np
 import torch
@@ -20,7 +20,7 @@ class ConnectedNodes(ABC, Module):
 
     def __init__(
         self,
-        nodes_type: Nodes,
+        nodes_type: Type[Nodes],
         n: Optional[int] = None,
         shape: Optional[Iterable[int]] = None,
         nu: Optional[Union[float, Sequence[float]]] = None,
@@ -57,7 +57,7 @@ class ConnectedNodes(ABC, Module):
 class RandomConnections(ConnectedNodes):
     def __init__(
         self,
-        nodes_type: type,
+        nodes_type: Type[Nodes],
         n: Optional[int] = None,
         shape: Optional[Iterable[int]] = None,
         nu: Optional[Union[float, Sequence[float]]] = None,
