@@ -11,7 +11,7 @@ class CallbackList:
         self.callbacks = callbacks
         for callback in callbacks:
             assert isinstance(callback,Callback), (
-                "All elements must be an instance of 'Callback' class." +
+                "All elements must be an instance of 'Callback' class. " +
                 f"Found {callback} of type {type(callback)}"
                 )
 
@@ -187,3 +187,32 @@ class TensorBoard(Callback):
                     self.recording[c][v] = torch.cat(
                         (self.recording[c][v], data), 0
                     )
+
+
+
+class DopaminergicNeurons(Callback):
+    # language=rst
+    """
+    Release dopamine (reward) into network based on neuronal activity of dopaminergic layers 
+    """
+    def __init__(
+        self,
+        layers: Dict[str, float]) -> None:
+        # language=rst
+        """
+        Constructor for dopaminergic neurons reward function.
+
+        :params layers: Dictionary of dopaminergic layers along with their 'DA per spike' release rate.
+        """
+        self.layers = layers 
+
+    def on_timepoint_start(self, timepoint, **kwargs) -> None:
+        # language=rst
+        """
+        Compute the amount of released dopamine (DA) as reward.
+        """
+        for l in self.layers:
+            if kwargs.get('reward') is not None:
+                kwargs['reward'] += self.network.layers[l].s.sum() * self.layers[l]
+            else:
+                kwargs['reward'] = self.network.layers[l].s.sum() * self.layers[l]
