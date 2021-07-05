@@ -1,11 +1,12 @@
 import tempfile
-from typing import Dict, Optional, Type, Iterable
+from typing import Dict, Optional, Type, Iterable, Union
 
 import torch
 
 from .monitors import AbstractMonitor
 from .nodes import Nodes, CSRMNodes
 from .topology import AbstractConnection
+from .callbacks import CallbackList
 from ..learning.reward import AbstractReward
 
 
@@ -86,6 +87,7 @@ class Network(torch.nn.Module):
         dt: float = 1.0,
         batch_size: int = 1,
         learning: bool = True,
+        callbacks: Union[CallbackList, list] = None,
         reward_fn: Optional[Type[AbstractReward]] = None,
     ) -> None:
         # language=rst
@@ -106,6 +108,11 @@ class Network(torch.nn.Module):
         self.layers = {}
         self.connections = {}
         self.monitors = {}
+
+        if isinstance(callbacks, CallbackList):
+            self.callbacks = callbacks
+        else:
+            self.callbacks = CallbackList(callbacks)
 
         self.train(learning)
 
@@ -275,6 +282,7 @@ class Network(torch.nn.Module):
             learning.
         :param Dict[Tuple[str], torch.Tensor] masks: Mapping of connection names to
             boolean masks determining which weights to clamp to zero.
+        :param Bool progress_bar: Show a progress bar while running the network.
 
         **Example:**
 
@@ -306,11 +314,18 @@ class Network(torch.nn.Module):
             plt.title('Input spiking')
             plt.show()
         """
+        # Check input type
+        assert type(inputs) == dict, ("'inputs' must be a dict of names of layers " + 
+        f"(str) and relevant input tensors. Got {type(inputs).__name__} instead."
+        )
         # Parse keyword arguments.
         clamps = kwargs.get("clamp", {})
         unclamps = kwargs.get("unclamp", {})
         masks = kwargs.get("masks", {})
         injects_v = kwargs.get("injects_v", {})
+
+        # Set the network element of callbacks
+        self.callbacks.set_network(self)
 
         # Compute reward.
         if self.reward_fn is not None:
@@ -347,7 +362,9 @@ class Network(torch.nn.Module):
         timesteps = int(time / self.dt)
 
         # Simulate network activity for `time` timesteps.
+        self.callbacks.on_run_start(kwargs)
         for t in range(timesteps):
+            self.callbacks.on_timepoint_start(t, kwargs)
             # Get input to all layers (synchronous mode).
             current_inputs = {}
             if not one_step:
@@ -407,9 +424,13 @@ class Network(torch.nn.Module):
             for m in self.monitors:
                 self.monitors[m].record()
 
+            self.callbacks.on_timepoint_end(t, kwargs)
+
         # Re-normalize connections.
         for c in self.connections:
             self.connections[c].normalize()
+        
+        self.callbacks.on_run_end(kwargs)
 
     def reset_state_variables(self) -> None:
         # language=rst

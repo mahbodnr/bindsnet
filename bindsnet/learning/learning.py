@@ -1,5 +1,6 @@
 from abc import ABC
 from typing import Union, Optional, Sequence
+import warnings
 
 import torch
 import numpy as np
@@ -49,12 +50,18 @@ class LearningRule(ABC):
         # Learning rate(s).
         if nu is None:
             nu = [0.0, 0.0]
-        elif isinstance(nu, float) or isinstance(nu, int):
+        elif isinstance(nu, (float, int)):
             nu = [nu, nu]
 
         self.nu = torch.zeros(2, dtype=torch.float)
         self.nu[0] = nu[0]
         self.nu[1] = nu[1]
+
+        if (self.nu == torch.zeros(2)).all() and not isinstance(self, NoOp):
+            warnings.warn(
+                f"nu is set to [0., 0.] for {type(self).__name__} learning rule. " +
+                "It will disable the learning process."
+                )
 
         # Parameter update reduction across minibatch dimension.
         if reduction is None:
@@ -788,7 +795,7 @@ class MSTDPET(LearningRule):
         self.p_minus += a_minus * target_s
 
         # Calculate point eligibility value.
-        self.eligibility = torch.ger(self.p_plus, target_s) + torch.ger(
+        self.eligibility = torch.outer(self.p_plus, target_s) + torch.outer(
             source_s, self.p_minus
         )
 
