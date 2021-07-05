@@ -24,25 +24,25 @@ class CallbackList:
             for callback in self.callbacks:
                 callback.set_network(network)
 
-    def on_run_start(self, **kwargs) -> None:
+    def on_run_start(self, kwargs) -> None:
         if self.callbacks:
             for callback in self.callbacks:
-                callback.on_run_start()
+                callback.on_run_start(kwargs)
 
-    def on_run_end(self, **kwargs) -> None:
+    def on_run_end(self, kwargs) -> None:
         if self.callbacks:
             for callback in self.callbacks:
-                callback.on_run_end()
+                callback.on_run_end(kwargs)
 
-    def on_timepoint_start(self, timepoint, **kwargs) -> None:
+    def on_timepoint_start(self, timepoint, kwargs) -> None:
         if self.callbacks:
             for callback in self.callbacks:
-                callback.on_timepoint_start(timepoint)
+                callback.on_timepoint_start(timepoint, kwargs)
             
-    def on_timepoint_end(self, timepoint, **kwargs) -> None:
+    def on_timepoint_end(self, timepoint, kwargs) -> None:
         if self.callbacks:
             for callback in self.callbacks:
-                callback.on_timepoint_end(timepoint)    
+                callback.on_timepoint_end(timepoint, kwargs)    
 
 
 class Callback:
@@ -52,19 +52,19 @@ class Callback:
         self.network = network
 
     @abstractmethod
-    def on_run_start(self, **kwargs) -> None:
+    def on_run_start(self, kwargs) -> None:
         ...
 
     @abstractmethod
-    def on_run_end(self, **kwargs) -> None:
+    def on_run_end(self, kwargs) -> None:
         ...
 
     @abstractmethod
-    def on_timepoint_start(self, timepoint, **kwargs) -> None:
+    def on_timepoint_start(self, timepoint, kwargs) -> None:
         ...
 
     @abstractmethod
-    def on_timepoint_end(self, timepoint, **kwargs) -> None:
+    def on_timepoint_end(self, timepoint, kwargs) -> None:
         ...
 
 
@@ -73,7 +73,8 @@ class TensorBoard(Callback):
         state_vars: Iterable[str] = None,
         layers: Optional[Iterable[str]] = None,
         connections: Optional[Iterable[str]] = None,
-        log_dir: str = None
+        log_dir: str = None,
+        rewards: Optional[bool] = False,
         ) -> None:
         """
         Constructs a ``TensorBoard`` callback.
@@ -84,6 +85,7 @@ class TensorBoard(Callback):
         :param log_dir: Save directory location. Default is runs/**CURRENT_DATETIME_HOSTNAME**, which changes after each
         run. Use hierarchical folder structure to compare between runs easily. e.g. pass in 'runs/exp1', 'runs/exp2',
         etc. for each new experiment to compare across them.
+        :param rewards: whether to record rewards.
         """
         super().__init__()
 
@@ -94,6 +96,7 @@ class TensorBoard(Callback):
         self.connections_names = connections
 
         self.state_vars = state_vars if state_vars is not None else ("v", "s")
+        self.rewards = rewards
         self.n_runs = 0
 
     def set_network(self, network) -> None:
@@ -114,8 +117,10 @@ class TensorBoard(Callback):
 
         # Initialize empty recording.
         self.recording = {k: {} for k in self.layers + self.connections}
+        if self.rewards:
+            self.recording['rewards'] = torch.Tensor()
         
-    def on_run_start(self, **kwargs) -> None:
+    def on_run_start(self, kwargs) -> None:
         for v in self.state_vars:
             for l in self.layers:
                 if hasattr(self.network.layers[l], v):
@@ -139,7 +144,7 @@ class TensorBoard(Callback):
                         self.n_runs
                         )
 
-    def on_run_end(self, **kwargs) -> None:
+    def on_run_end(self, kwargs) -> None:
         self.n_runs += 1
 
         for v in self.state_vars:
@@ -172,7 +177,14 @@ class TensorBoard(Callback):
                     self.n_runs
                     )
 
-    def on_timepoint_end(self, timepoint, **kwargs) -> None:
+        if self.rewards:
+            self.writer.add_scalar(
+                'Rewards',
+                self.recording['rewards'].sum(),
+                self.n_runs
+                )
+
+    def on_timepoint_end(self, timepoint, kwargs) -> None:
         for v in self.state_vars:
             for l in self.layers:
                 if hasattr(self.network.layers[l], v):
@@ -188,7 +200,11 @@ class TensorBoard(Callback):
                         (self.recording[c][v], data), 0
                     )
 
-
+        if self.rewards:
+            data = torch.tensor([kwargs['reward']])
+            self.recording['rewards'] = torch.cat(
+                        (self.recording['rewards'], data), 0
+                    )
 
 class DopaminergicNeurons(Callback):
     # language=rst
@@ -206,13 +222,10 @@ class DopaminergicNeurons(Callback):
         """
         self.layers = layers 
 
-    def on_timepoint_start(self, timepoint, **kwargs) -> None:
+    def on_timepoint_start(self, timepoint, kwargs) -> None:
         # language=rst
         """
         Compute the amount of released dopamine (DA) as reward.
         """
         for l in self.layers:
-            if kwargs.get('reward') is not None:
-                kwargs['reward'] += self.network.layers[l].s.sum() * self.layers[l]
-            else:
-                kwargs['reward'] = self.network.layers[l].s.sum() * self.layers[l]
+            kwargs['reward'] = self.network.layers[l].s.sum() * self.layers[l]
