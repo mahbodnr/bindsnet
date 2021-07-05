@@ -362,9 +362,9 @@ class Network(torch.nn.Module):
         timesteps = int(time / self.dt)
 
         # Simulate network activity for `time` timesteps.
-        self.callbacks.on_run_start()
+        self.callbacks.on_run_start(**kwargs)
         for t in range(timesteps):
-            self.callbacks.on_timepoint_start(t)
+            self.callbacks.on_timepoint_start(t, **kwargs)
 
             # Get input to all layers (synchronous mode).
             current_inputs = {}
@@ -425,13 +425,13 @@ class Network(torch.nn.Module):
             for m in self.monitors:
                 self.monitors[m].record()
 
-            self.callbacks.on_timepoint_end(t)
+            self.callbacks.on_timepoint_end(t, **kwargs)
 
         # Re-normalize connections.
         for c in self.connections:
             self.connections[c].normalize()
         
-        self.callbacks.on_run_end()
+        self.callbacks.on_run_end(**kwargs)
 
     def reset_state_variables(self) -> None:
         # language=rst

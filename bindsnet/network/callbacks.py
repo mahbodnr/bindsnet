@@ -24,22 +24,22 @@ class CallbackList:
             for callback in self.callbacks:
                 callback.set_network(network)
 
-    def on_run_start(self) -> None:
+    def on_run_start(self, **kwargs) -> None:
         if self.callbacks:
             for callback in self.callbacks:
                 callback.on_run_start()
 
-    def on_run_end(self) -> None:
+    def on_run_end(self, **kwargs) -> None:
         if self.callbacks:
             for callback in self.callbacks:
                 callback.on_run_end()
 
-    def on_timepoint_start(self, timepoint) -> None:
+    def on_timepoint_start(self, timepoint, **kwargs) -> None:
         if self.callbacks:
             for callback in self.callbacks:
                 callback.on_timepoint_start(timepoint)
             
-    def on_timepoint_end(self, timepoint) -> None:
+    def on_timepoint_end(self, timepoint, **kwargs) -> None:
         if self.callbacks:
             for callback in self.callbacks:
                 callback.on_timepoint_end(timepoint)    
@@ -52,19 +52,19 @@ class Callback:
         self.network = network
 
     @abstractmethod
-    def on_run_start(self) -> None:
+    def on_run_start(self, **kwargs) -> None:
         ...
 
     @abstractmethod
-    def on_run_end(self) -> None:
+    def on_run_end(self, **kwargs) -> None:
         ...
 
     @abstractmethod
-    def on_timepoint_start(self, timepoint) -> None:
+    def on_timepoint_start(self, timepoint, **kwargs) -> None:
         ...
 
     @abstractmethod
-    def on_timepoint_end(self, timepoint) -> None:
+    def on_timepoint_end(self, timepoint, **kwargs) -> None:
         ...
 
 
@@ -115,7 +115,7 @@ class TensorBoard(Callback):
         # Initialize empty recording.
         self.recording = {k: {} for k in self.layers + self.connections}
         
-    def on_run_start(self) -> None:
+    def on_run_start(self, **kwargs) -> None:
         for v in self.state_vars:
             for l in self.layers:
                 if hasattr(self.network.layers[l], v):
@@ -139,7 +139,7 @@ class TensorBoard(Callback):
                         self.n_runs
                         )
 
-    def on_run_end(self) -> None:
+    def on_run_end(self, **kwargs) -> None:
         self.n_runs += 1
 
         for v in self.state_vars:
@@ -172,7 +172,7 @@ class TensorBoard(Callback):
                     self.n_runs
                     )
 
-    def on_timepoint_end(self, timepoint) -> None:
+    def on_timepoint_end(self, timepoint, **kwargs) -> None:
         for v in self.state_vars:
             for l in self.layers:
                 if hasattr(self.network.layers[l], v):
