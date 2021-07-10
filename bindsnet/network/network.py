@@ -6,6 +6,7 @@ import torch
 from .monitors import AbstractMonitor
 from .nodes import Nodes, CSRMNodes
 from .topology import AbstractConnection
+from .layers import ConnectedNodes
 from .callbacks import CallbackList
 from ..learning.reward import AbstractReward
 
@@ -121,7 +122,7 @@ class Network(torch.nn.Module):
         else:
             self.reward_fn = None
 
-    def add_layer(self, layer: Nodes, name: str) -> None:
+    def add_nodes(self, nodes: Nodes, name: str) -> None:
         # language=rst
         """
         Adds a layer of nodes to the network.
@@ -129,12 +130,12 @@ class Network(torch.nn.Module):
         :param layer: A subclass of the ``Nodes`` object.
         :param name: Logical name of layer.
         """
-        self.layers[name] = layer
-        self.add_module(name, layer)
+        self.layers[name] = nodes
+        self.add_module(name, nodes)
 
-        layer.train(self.learning)
-        layer.compute_decays(self.dt)
-        layer.set_batch_size(self.batch_size)
+        nodes.train(self.learning)
+        nodes.compute_decays(self.dt)
+        nodes.set_batch_size(self.batch_size)
 
     def add_connection(
         self, connection: AbstractConnection, source: str, target: str
@@ -153,6 +154,21 @@ class Network(torch.nn.Module):
         connection.dt = self.dt
         connection.train(self.learning)
 
+    def add_layer(self, layer: ConnectedNodes, name: str) -> None:
+        # language=rst
+        """
+        Adds a layer of connected nodes to the network.
+
+        :param layer: A subclass of the ``ConnectedNodes`` object.
+        :param name: Logical name of layer.
+        """
+        if isinstance(layer, Nodes):
+            self.add_nodes(layer)
+            return
+            
+        self.add_nodes(layer.nodes)
+        self.add_layer(layer.connection)
+        
     def add_monitor(self, monitor: AbstractMonitor, name: str) -> None:
         # language=rst
         """
