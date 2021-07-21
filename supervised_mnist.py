@@ -213,7 +213,7 @@ for (i, datum) in enumerate(dataloader):
     if gpu:
         inputs = {"X": image.cuda().view(time, 1, 1, 28, 28)}
     else:
-        inputs = {"X": image.view(time, 5, 1, 28, 28)}
+        inputs = {"X": image.view(time, 1, 1, 28, 28)}
     network.run(inputs=inputs, time=time, clamp=clamp)
 
     # Get voltage recording.
