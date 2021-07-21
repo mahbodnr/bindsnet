@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from torchvision import transforms
 from tqdm import tqdm
 
-print('test')
 from bindsnet.datasets import MNIST
 from bindsnet.encoding import PoissonEncoder
 from bindsnet.network import Network

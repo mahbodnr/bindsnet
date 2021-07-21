@@ -163,7 +163,7 @@ class Network(torch.nn.Module):
         :param name: Logical name of layer.
         """
         if isinstance(layer, Nodes):
-            self.add_nodes(layer)
+            self.add_nodes(layer, name = name)
             return
             
         self.add_nodes(layer.nodes)

@@ -8,6 +8,8 @@ class CallbackList:
         self,
         callbacks
         ) -> None:
+        if callbacks is None:
+            callbacks = []
         self.callbacks = callbacks
         for callback in callbacks:
             assert isinstance(callback,Callback), (
