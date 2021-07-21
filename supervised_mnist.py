@@ -1,6 +1,7 @@
 from bindsnet.network.nodes import Nodes
 import os
 import torch
+import torchvision
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
@@ -65,9 +66,12 @@ train = args.train
 plot = args.plot
 gpu = args.gpu
 device_id = args.device_id
+gpu=True
 
 # Sets up Gpu use
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = 'cuda'
+print(torch.cuda.is_available())
 if gpu and torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
 else:
@@ -213,7 +217,7 @@ for (i, datum) in enumerate(dataloader):
     if gpu:
         inputs = {"X": image.cuda().view(time, 1, 1, 28, 28)}
     else:
-        inputs = {"X": image.view(time, 5, 1, 28, 28)}
+        inputs = {"X": image.view(time, 1, 1, 28, 28)}
     network.run(inputs=inputs, time=time, clamp=clamp)
 
     # Get voltage recording.
