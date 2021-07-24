@@ -188,7 +188,7 @@ class PostPre(LearningRule):
 
         # Pre-synaptic update.
         if self.nu[0]:
-            source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float()
+            source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float().to(self.a_plus)
             target_x = self.target.x.view(batch_size, -1).unsqueeze(1) * self.nu[0]
             self.connection.w -= self.reduction(torch.bmm(source_s, target_x), dim=0)
             del source_s, target_x
@@ -595,7 +595,6 @@ class MSTDP(LearningRule):
 
         # Update P^+ and P^- values.
         self.p_plus *= torch.exp(-self.connection.dt / self.tc_plus)
-        print(a_plus.device, source_s.device, self.p_plus.device)
         self.p_plus += a_plus * source_s
         self.p_minus *= torch.exp(-self.connection.dt / self.tc_minus)
         self.p_minus += a_minus * target_s
@@ -754,9 +753,9 @@ class MSTDPET(LearningRule):
         """
         # Initialize eligibility, eligibility trace, P^+, and P^-.
         if not hasattr(self, "p_plus"):
-            self.p_plus = torch.zeros((self.source.n), device=self.source.s.device)
+            self.p_plus = torch.zeros((self.source.n), device=self.connection.w.device)
         if not hasattr(self, "p_minus"):
-            self.p_minus = torch.zeros((self.target.n), device=self.target.s.device)
+            self.p_minus = torch.zeros((self.target.n), device=self.connection.w.device)
         if not hasattr(self, "eligibility"):
             self.eligibility = torch.zeros(
                 *self.connection.w.shape, device=self.connection.w.device
@@ -767,8 +766,8 @@ class MSTDPET(LearningRule):
             )
 
         # Reshape pre- and post-synaptic spikes.
-        source_s = self.source.s.view(-1).float()
-        target_s = self.target.s.view(-1).float()
+        source_s = self.source.s.view(-1).float().to(self.connection.w.device)
+        target_s = self.target.s.view(-1).float().to(self.connection.w.device)
 
         # Parse keyword arguments.
         reward = kwargs["reward"]

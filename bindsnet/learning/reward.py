@@ -142,8 +142,8 @@ class DynamicDopamineInjection(AbstractReward):
                         self.decay
                         * (self.dopamine - self.dopamine_base)
                         + self.dopamine_base
-        )
-        target_spikes = (s[self.label*self.n_per_class: (self.label+1)*self.n_per_class]).sum()
+        ).to(s.device)
+        target_spikes = (s[self.label*self.n_per_class: (self.label+1)*self.n_per_class]).sum().to(s.device)
         self.dopamine += target_spikes * self.dopamine_per_spike
 
         return self.dopamine
