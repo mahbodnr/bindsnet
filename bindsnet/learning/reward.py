@@ -101,6 +101,7 @@ class MovingAvgRPE(AbstractReward):
 class DynamicDopamineInjection(AbstractReward):
     # language=rst
     """
+    
     """
 
     def __init__(self, 
