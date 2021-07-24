@@ -595,6 +595,7 @@ class MSTDP(LearningRule):
 
         # Update P^+ and P^- values.
         self.p_plus *= torch.exp(-self.connection.dt / self.tc_plus)
+        print(a_plus.device, source_s.device, self.p_plus.device)
         self.p_plus += a_plus * source_s
         self.p_minus *= torch.exp(-self.connection.dt / self.tc_minus)
         self.p_minus += a_minus * target_s
