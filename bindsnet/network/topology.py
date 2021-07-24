@@ -621,7 +621,7 @@ class LocalConnection(AbstractConnection):
         # Compute multiplication of pre-activations by connection weights.
         #print(self, s.device, self.w.device, self.b.device)
         a_post = (
-            s.float().view(s.size(0), -1).to('cuda') @ self.w.view(self.source.n, self.target.n)
+            s.float().view(s.size(0), -1).to(self.w.device) @ self.w.view(self.source.n, self.target.n)
             + self.b
         )
         return a_post.view(*self.target.shape)
