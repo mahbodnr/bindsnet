@@ -101,44 +101,35 @@ class MovingAvgRPE(AbstractReward):
 class DynamicDopamineInjection(AbstractReward):
     # language=rst
     """
-    
+
     """
-
-    def __init__(self, 
-    dopaminergic_layer, 
-    n_labels,
-    neuron_per_class,
-    dopamine_per_spike, 
-    tc_reward,
-    dopamine_base,
-    ):
-        self.l = dopaminergic_layer
-        self.n_labels = n_labels
-        self.n_per_class = neuron_per_class
-        self.dopamine_per_spike = dopamine_per_spike
-        self.tc_reward = tc_reward
-        self.dopamine_base = dopamine_base
-
-        self.dopamine = dopamine_base
-
-    @abstractmethod
     def compute(self, **kwargs) -> None:
         # language=rst
         """
         Computes/modifies reward.
         """
+        self.l = kwargs.get('dopaminergic_layer')
+        self.n_labels = kwargs.get('n_labels')
+        self.n_per_class = kwargs.get('neuron_per_class')
+        self.dopamine_per_spike = kwargs.get('dopamine_per_spike')
+        self.tc_reward = kwargs.get('tc_reward')
+        self.dopamine_base = kwargs.get('dopamine_base')
+        dt = torch.as_tensor(self.dt)
+        self.decay = torch.exp(-dt / self.tc_reward) 
+
         self.label = kwargs['labels']
 
-    @abstractmethod
+        self.dopamine = self.dopamine_base
+        return self.dopamine
+        
     def update(self, **kwargs) -> None:
         # language=rst
         """
         Updates internal variables needed to modify reward. Usually called once per
         episode.
         """
-        return self.dopamine
+        pass
 
-    @abstractmethod
     def online_compute(self, **kwargs) -> None:
         # language=rst
         """
@@ -148,11 +139,11 @@ class DynamicDopamineInjection(AbstractReward):
         s = self.network.layers[self.l].s
         assert s.shape[0] == 1, "This method has not yet been implemented for batch_size>1 !" 
         self.dopamine = (
-                        torch.exp(-self.dt / self.tc_reward) 
+                        self.decay
                         * (self.dopamine - self.dopamine_base)
                         + self.dopamine_base
         )
-        target_spikes = sum(s[self.label*self.n_per_class: (self.label+1)*self.n_per_class])
+        target_spikes = (s[self.label*self.n_per_class: (self.label+1)*self.n_per_class]).sum()
         self.dopamine += target_spikes * self.dopamine_per_spike
 
         return self.dopamine

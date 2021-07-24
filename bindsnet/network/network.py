@@ -111,6 +111,8 @@ class Network(torch.nn.Module):
 
         if reward_fn is not None:
             self.reward_fn = reward_fn()
+            self.reward_fn.network = self
+            self.reward_fn.dt = self.dt
         else:
             self.reward_fn = None
 
@@ -158,15 +160,6 @@ class Network(torch.nn.Module):
         monitor.network = self
         monitor.dt = self.dt
 
-    def add_reward(self, reward_fn: AbstractReward, name: str) -> None:
-        # language=rst
-        """
-        Adds a reward_fn on a network object to the network.
-
-        :param reward_fn: An instance of class ``AbstractReward``.
-        :param name: Logical name of monitor object.
-        """
-        reward_fn.network = self
 
     def save(self, file_name: str) -> None:
         # language=rst
