@@ -1,13 +1,11 @@
 import tempfile
-from typing import Dict, Optional, Type, Iterable, Union
+from typing import Dict, Optional, Type, Iterable
 
 import torch
 
 from .monitors import AbstractMonitor
 from .nodes import Nodes, CSRMNodes
 from .topology import AbstractConnection
-from .layers import ConnectedNodes
-from .callbacks import CallbackList
 from ..learning.reward import AbstractReward
 
 
@@ -88,7 +86,6 @@ class Network(torch.nn.Module):
         dt: float = 1.0,
         batch_size: int = 1,
         learning: bool = True,
-        callbacks: Union[CallbackList, list] = None,
         reward_fn: Optional[Type[AbstractReward]] = None,
     ) -> None:
         # language=rst
@@ -110,11 +107,6 @@ class Network(torch.nn.Module):
         self.connections = {}
         self.monitors = {}
 
-        if isinstance(callbacks, CallbackList):
-            self.callbacks = callbacks
-        else:
-            self.callbacks = CallbackList(callbacks)
-
         self.train(learning)
 
         if reward_fn is not None:
@@ -122,7 +114,7 @@ class Network(torch.nn.Module):
         else:
             self.reward_fn = None
 
-    def add_nodes(self, nodes: Nodes, name: str) -> None:
+    def add_layer(self, layer: Nodes, name: str) -> None:
         # language=rst
         """
         Adds a layer of nodes to the network.
@@ -130,12 +122,12 @@ class Network(torch.nn.Module):
         :param layer: A subclass of the ``Nodes`` object.
         :param name: Logical name of layer.
         """
-        self.layers[name] = nodes
-        self.add_module(name, nodes)
+        self.layers[name] = layer
+        self.add_module(name, layer)
 
-        nodes.train(self.learning)
-        nodes.compute_decays(self.dt)
-        nodes.set_batch_size(self.batch_size)
+        layer.train(self.learning)
+        layer.compute_decays(self.dt)
+        layer.set_batch_size(self.batch_size)
 
     def add_connection(
         self, connection: AbstractConnection, source: str, target: str
@@ -154,21 +146,6 @@ class Network(torch.nn.Module):
         connection.dt = self.dt
         connection.train(self.learning)
 
-    def add_layer(self, layer: ConnectedNodes, name: str) -> None:
-        # language=rst
-        """
-        Adds a layer of connected nodes to the network.
-
-        :param layer: A subclass of the ``ConnectedNodes`` object.
-        :param name: Logical name of layer.
-        """
-        if isinstance(layer, Nodes):
-            self.add_nodes(layer, name = name)
-            return
-            
-        self.add_nodes(layer.nodes)
-        self.add_layer(layer.connection)
-        
     def add_monitor(self, monitor: AbstractMonitor, name: str) -> None:
         # language=rst
         """
@@ -180,6 +157,16 @@ class Network(torch.nn.Module):
         self.monitors[name] = monitor
         monitor.network = self
         monitor.dt = self.dt
+
+    def add_reward(self, reward_fn: AbstractReward, name: str) -> None:
+        # language=rst
+        """
+        Adds a reward_fn on a network object to the network.
+
+        :param reward_fn: An instance of class ``AbstractReward``.
+        :param name: Logical name of monitor object.
+        """
+        reward_fn.network = self
 
     def save(self, file_name: str) -> None:
         # language=rst
@@ -254,7 +241,7 @@ class Network(torch.nn.Module):
                             self.batch_size,
                             target.res_window_size,
                             *target.shape,
-                            device=target.s.device
+                            device=target.s.device,
                         )
                     else:
                         inputs[c[1]] = torch.zeros(
@@ -265,7 +252,6 @@ class Network(torch.nn.Module):
                 if isinstance(target, CSRMNodes):
                     inputs[c[1]] += self.connections[c].compute_window(source.s)
                 else:
-                    print('*', source.s.device)
                     inputs[c[1]] += self.connections[c].compute(source.s)
 
         return inputs
@@ -332,17 +318,15 @@ class Network(torch.nn.Module):
             plt.show()
         """
         # Check input type
-        assert type(inputs) == dict, ("'inputs' must be a dict of names of layers " + 
-        f"(str) and relevant input tensors. Got {type(inputs).__name__} instead."
+        assert type(inputs) == dict, (
+            "'inputs' must be a dict of names of layers "
+            + f"(str) and relevant input tensors. Got {type(inputs).__name__} instead."
         )
         # Parse keyword arguments.
         clamps = kwargs.get("clamp", {})
         unclamps = kwargs.get("unclamp", {})
         masks = kwargs.get("masks", {})
         injects_v = kwargs.get("injects_v", {})
-
-        # Set the network element of callbacks
-        self.callbacks.set_network(self)
 
         # Compute reward.
         if self.reward_fn is not None:
@@ -379,9 +363,7 @@ class Network(torch.nn.Module):
         timesteps = int(time / self.dt)
 
         # Simulate network activity for `time` timesteps.
-        self.callbacks.on_run_start(kwargs)
         for t in range(timesteps):
-            self.callbacks.on_timepoint_start(t, kwargs)
             # Get input to all layers (synchronous mode).
             current_inputs = {}
             if not one_step:
@@ -441,13 +423,12 @@ class Network(torch.nn.Module):
             for m in self.monitors:
                 self.monitors[m].record()
 
-            self.callbacks.on_timepoint_end(t, kwargs)
+            if self.reward_fn is not None:
+                kwargs["reward"] = self.reward_fn.online_compute(**kwargs)
 
         # Re-normalize connections.
         for c in self.connections:
             self.connections[c].normalize()
-        
-        self.callbacks.on_run_end(kwargs)
 
     def reset_state_variables(self) -> None:
         # language=rst
