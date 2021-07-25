@@ -188,7 +188,7 @@ class PostPre(LearningRule):
 
         # Pre-synaptic update.
         if self.nu[0]:
-            source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float().to(self.a_plus)
+            source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float().to(self.connection.w.device)
             target_x = self.target.x.view(batch_size, -1).unsqueeze(1) * self.nu[0]
             self.connection.w -= self.reduction(torch.bmm(source_s, target_x), dim=0)
             del source_s, target_x
@@ -196,7 +196,7 @@ class PostPre(LearningRule):
         # Post-synaptic update.
         if self.nu[1]:
             target_s = (
-                self.target.s.view(batch_size, -1).unsqueeze(1).float() * self.nu[1]
+                self.target.s.view(batch_size, -1).unsqueeze(1).float() * self.nu[1].to(self.connection.w.device)
             )
             source_x = self.source.x.view(batch_size, -1).unsqueeze(2)
             self.connection.w += self.reduction(torch.bmm(source_x, target_s), dim=0)
@@ -227,7 +227,7 @@ class PostPre(LearningRule):
             padding=padding,
             stride=stride,
         )
-        target_s = self.target.s.view(batch_size, out_channels, -1).float()
+        target_s = self.target.s.view(batch_size, out_channels, -1).float().to(self.connection.w.device)
 
         # Pre-synaptic update.
         if self.nu[0]:
@@ -306,10 +306,10 @@ class WeightDependentPostPre(LearningRule):
         """
         batch_size = self.source.batch_size
 
-        source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float()
-        source_x = self.source.x.view(batch_size, -1).unsqueeze(2)
-        target_s = self.target.s.view(batch_size, -1).unsqueeze(1).float()
-        target_x = self.target.x.view(batch_size, -1).unsqueeze(1)
+        source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float().to(self.connection.w.device)
+        source_x = self.source.x.view(batch_size, -1).unsqueeze(2).to(self.connection.w.device)
+        target_s = self.target.s.view(batch_size, -1).unsqueeze(1).float().to(self.connection.w.device)
+        target_x = self.target.x.view(batch_size, -1).unsqueeze(1).to(self.connection.w.device)
 
         update = 0
 
@@ -355,7 +355,7 @@ class WeightDependentPostPre(LearningRule):
             padding=padding,
             stride=stride,
         )
-        target_s = self.target.s.view(batch_size, out_channels, -1).float()
+        target_s = self.target.s.view(batch_size, out_channels, -1).float().to(self.connection.w.device)
 
         update = 0
 
@@ -440,10 +440,10 @@ class Hebbian(LearningRule):
         """
         batch_size = self.source.batch_size
 
-        source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float()
-        source_x = self.source.x.view(batch_size, -1).unsqueeze(2)
-        target_s = self.target.s.view(batch_size, -1).unsqueeze(1).float()
-        target_x = self.target.x.view(batch_size, -1).unsqueeze(1)
+        source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float().to(self.connection.w.device)
+        source_x = self.source.x.view(batch_size, -1).unsqueeze(2).to(self.connection.w.device)
+        target_s = self.target.s.view(batch_size, -1).unsqueeze(1).float().to(self.connection.w.device)
+        target_x = self.target.x.view(batch_size, -1).unsqueeze(1).to(self.connection.w.device)
 
         # Pre-synaptic update.
         update = self.reduction(torch.bmm(source_s, target_x), dim=0)
@@ -477,7 +477,7 @@ class Hebbian(LearningRule):
             padding=padding,
             stride=stride,
         )
-        target_s = self.target.s.view(batch_size, out_channels, -1).float()
+        target_s = self.target.s.view(batch_size, out_channels, -1).float().to(self.connection.w.device)
 
         # Pre-synaptic update.
         pre = self.reduction(torch.bmm(target_x, source_s.permute((0, 2, 1))), dim=0)
@@ -562,14 +562,14 @@ class MSTDP(LearningRule):
                 # batch_size, *self.source.shape, device=self.source.s.device
                 batch_size,
                 self.source.n,
-                device=self.source.s.device,
+                device=self.connection.w.device,
             )
         if not hasattr(self, "p_minus"):
             self.p_minus = torch.zeros(
                 # batch_size, *self.target.shape, device=self.target.s.device
                 batch_size,
                 self.target.n,
-                device=self.target.s.device,
+                device=self.connection.w.device,
             )
         if not hasattr(self, "eligibility"):
             self.eligibility = torch.zeros(
@@ -577,8 +577,8 @@ class MSTDP(LearningRule):
             )
 
         # Reshape pre- and post-synaptic spikes.
-        source_s = self.source.s.view(batch_size, -1).float()
-        target_s = self.target.s.view(batch_size, -1).float()
+        source_s = self.source.s.view(batch_size, -1).float().to(self.connection.w.device)
+        target_s = self.target.s.view(batch_size, -1).float().to(self.connection.w.device)
 
         # Parse keyword arguments.
         reward = kwargs["reward"]
@@ -594,9 +594,9 @@ class MSTDP(LearningRule):
         self.connection.w += self.nu[0] * self.reduction(update, dim=0)
 
         # Update P^+ and P^- values.
-        self.p_plus *= torch.exp(-self.connection.dt / self.tc_plus)
+        self.p_plus *= torch.exp(-self.connection.dt / self.tc_plus).to(self.connection.w.device)
         self.p_plus += a_plus * source_s
-        self.p_minus *= torch.exp(-self.connection.dt / self.tc_minus)
+        self.p_minus *= torch.exp(-self.connection.dt / self.tc_minus).to(self.connection.w.device)
         self.p_minus += a_minus * target_s
 
         # Calculate point eligibility value.
