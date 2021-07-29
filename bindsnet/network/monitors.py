@@ -69,7 +69,7 @@ class Monitor(AbstractMonitor):
             self.recording[var] = []
         return return_logs
 
-    def record(self) -> None:
+    def record(self, **kwargs) -> None:
         # language=rst
         """
         Appends the current value of the recorded state variables to the recording.
@@ -178,7 +178,7 @@ class NetworkMonitor(AbstractMonitor):
         """
         return self.recording
 
-    def record(self) -> None:
+    def record(self, **kwargs) -> None:
         # language=rst
         """
         Appends the current value of the recorded state variables to the recording.
