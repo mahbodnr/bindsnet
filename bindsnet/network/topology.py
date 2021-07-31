@@ -7,7 +7,7 @@ from torch.nn import Module, Parameter
 import torch.nn.functional as F
 from torch.nn.modules.utils import _pair
 
-from .nodes import Nodes, CSRMNodes
+from bindsnet.network.nodes import Nodes, CSRMNodes
 
 
 class AbstractConnection(ABC, Module):
@@ -619,8 +619,9 @@ class LocalConnection(AbstractConnection):
             decaying spike activation).
         """
         # Compute multiplication of pre-activations by connection weights.
+        #print(self, s.device, self.w.device, self.b.device)
         a_post = (
-            s.float().view(s.size(0), -1) @ self.w.view(self.source.n, self.target.n)
+            s.float().view(s.size(0), -1).to(self.w.device) @ self.w.view(self.source.n, self.target.n)
             + self.b
         )
         return a_post.view(*self.target.shape)

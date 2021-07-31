@@ -111,6 +111,8 @@ class Network(torch.nn.Module):
 
         if reward_fn is not None:
             self.reward_fn = reward_fn()
+            self.reward_fn.network = self
+            self.reward_fn.dt = self.dt
         else:
             self.reward_fn = None
 
@@ -167,6 +169,7 @@ class Network(torch.nn.Module):
         :param name: Logical name of monitor object.
         """
         reward_fn.network = self
+
 
     def save(self, file_name: str) -> None:
         # language=rst
@@ -419,9 +422,12 @@ class Network(torch.nn.Module):
             # # Get input to all layers.
             # current_inputs.update(self._get_inputs())
 
+            if self.reward_fn is not None:
+                kwargs["reward"] = self.reward_fn.online_compute(**kwargs)
+
             # Record state variables of interest.
             for m in self.monitors:
-                self.monitors[m].record()
+                self.monitors[m].record(**kwargs)
 
             if self.reward_fn is not None:
                 kwargs["reward"] = self.reward_fn.online_compute(**kwargs)
