@@ -422,15 +422,9 @@ class Network(torch.nn.Module):
             # # Get input to all layers.
             # current_inputs.update(self._get_inputs())
 
-            if self.reward_fn is not None:
-                kwargs["reward"] = self.reward_fn.online_compute(**kwargs)
-
             # Record state variables of interest.
             for m in self.monitors:
                 self.monitors[m].record(**kwargs)
-
-            if self.reward_fn is not None:
-                kwargs["reward"] = self.reward_fn.online_compute(**kwargs)
 
         # Re-normalize connections.
         for c in self.connections:
