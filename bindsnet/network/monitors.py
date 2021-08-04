@@ -435,7 +435,7 @@ class TensorBoardMonitor(AbstractMonitor):
             if self.network.connections[c].b is not None:
                 self.writer.add_histogram(
                     f'{c[0]} to {c[1]}/Biases',
-                    self.network.connections[c].w,
+                    self.network.connections[c].b,
                     self.step
                     )
 
@@ -501,6 +501,7 @@ class TensorBoardMonitor(AbstractMonitor):
         self._add_scalers()
         self._add_grids()
         self.step += 1
+        self.writer.flush()
 
     #TODO
     def plot_reward(
